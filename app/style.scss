@@ -1,0 +1,17 @@
+//Sass --watch style.scss:style.css
+//cd /d D:\ = change disk to D
+body {
+    background: grey;
+    margin: 0;
+    padding: 0;
+    perspective: 2000px;
+    
+    p{
+        color: white;
+    }
+}
+#__bs_notify__ {
+    display: none;
+    opacity: 0;
+}
+

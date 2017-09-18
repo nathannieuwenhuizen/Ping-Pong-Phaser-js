@@ -1,0 +1,11 @@
+body {
+  background: grey;
+  margin: 0;
+  padding: 0;
+  perspective: 2000px; }
+  body p {
+    color: white; }
+
+#__bs_notify__ {
+  display: none;
+  opacity: 0; }
