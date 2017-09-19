@@ -33,6 +33,7 @@
     gulp.task('watch', ['browserSync'], function () {
         console.log('Hello ' + config.author + '! Time to watch some Styles!');
         gulp.watch('app/*.scss', ['sass']);
+        gulp.watch('app/*.ts', ['ts']);
         gulp.watch('app/*.html', browserSync.reload);
         gulp.watch('app/*.js', browserSync.reload);
     })
@@ -48,8 +49,9 @@
         return gulp.src('app/*.ts')
             .pipe(ts({
                 noImplicitAny: true,
-                outFile: 'output.js'
+                outFile: 'script.js'
             }))
-            .pipe(gulp.dest('built/local'));
+            .pipe(notify('Typescript compiled!'))
+            .pipe(gulp.dest('app'));
     });
 })();

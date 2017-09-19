@@ -1,143 +1,142 @@
-window.addEventListener("load", function () {
-    var game = new Phaser.Game(800, 600, Phaser.AUTO, '', {
-        preload: preload,
-        create: create,
-        update: update
-    });
-
-    var paddle1, paddle2;
-    var ball;
-    var ball_velocity;
-    var ball_launched;
-    
-    //text object
-    var score1_text;
-    var score2_text;
-    var score1,score2 =0;
-    function preload() {
-        game.load.image('paddle', 'assets/paddle.png');
-        game.load.image('ball', 'assets/ball.png');
-
-        game.load.bitmapFont('font','assets/font.png','assets/font.xml')
-        game.load.audio('biep', ['assets/biep.wav']);
-        game.load.audio('biep2', ['assets/biep2.wav']);
+var SimpleGame = /** @class */ (function () {
+    function SimpleGame() {
+        this.ball_velocity = 100;
+        this.score1 = 0;
+        this.score2 = 0;
+        this.game = new Phaser.Game(1000, 600, Phaser.AUTO, '', {
+            preload: this.preload,
+            create: this.create,
+            update: this.update,
+            input_paddle: this.input_paddle,
+            redirect_ball: this.redirect_ball,
+            collission_detection: this.collission_detection,
+            input_AI: this.input_AI
+        });
+        this.ball;
+    }
+    SimpleGame.prototype.preload = function () {
+        this.game.load.image('ball', 'assets/ball.png');
+        this.game.load.image('paddle', 'assets/paddle.png');
+        this.game.load.bitmapFont('font', 'assets/font.png', 'assets/font.xml');
+        this.game.load.audio('biep', ['assets/biep.wav']);
+        this.game.load.audio('biep2', ['assets/biep2.wav']);
     };
-
-    function create() {
-        ball_launched = false;
-        ball_velocity = 500;
-        paddle1 = create_paddle(0, game.world.centerY);
-        paddle2 = create_paddle(game.world.width - 8, game.world.centerY);
-
-        ball = create_ball(game.world.centerX, game.world.centerY);
-
-        game.input.onDown.add(launch_ball, this);
-
-        //text object (heavier that bitmap
-
-        // score1_text = game.add.text(game.world.width-128,128,'0', {
-        //     font: "64px Gabriella",
-        //     fill:"#fff",
-        //     align: "center"
-        // });
-        // score2_text = game.add.text(128,128,'0', {
-        //     font: "64px Gabriella",
-        //     fill:"#fff",
-        //     align: "center"
-        //    });
-
-        //bitmap text
-        score1_text = game.add.bitmapText(128,128,'font','0',64);
-        score2_text = game.add.bitmapText(game.world.width-128,128,'font','0',64);
-        score1 =0;
-        score2 =0;
+    SimpleGame.prototype.create = function () {
+        this.paddle1 = new Paddle(16, this.game.world.centerY, this);
+        this.paddle2 = new Paddle(this.game.world.width - 16, this.game.world.centerY, this);
+        this.ball = new Ball(this.game.world.centerX, this.game.world.centerY, this);
+        this.game.input.onDown.add(this.ball.launch, this.ball);
+        this.score1 = this.score2 = 0;
+        this.score1_text = this.game.add.bitmapText(this.game.world.width / 2 - 128, 60, 'font', '0', 64);
+        this.score2_text = this.game.add.bitmapText(this.game.world.width / 2 + 128, 60, 'font', '0', 64);
     };
-
-    function update() {
-
-        score1_text.text = score1;
-        score2_text.text = score2;
-
-        input_paddle(paddle1, game.input.y);
-        game.physics.arcade.collide(paddle1,ball, function (){
-            game.sound.play('biep');
-            redirect_ball(paddle1,ball);
-        } );
-        game.physics.arcade.collide(paddle2,ball, function (){
-            game.sound.play('biep2');
-            redirect_ball(paddle2,ball);
-        } );
-        
-        if(ball.body.blocked.left){
-            score2++;
-            reset_ball();
-            console.log('player 2 scores!');
+    SimpleGame.prototype.update = function () {
+        this.score1_text.text = this.score1;
+        this.score2_text.text = this.score2;
+        this.input_paddle(this.paddle1, this.game.input.y);
+        this.collission_detection();
+        this.input_AI();
+    };
+    //collision of the ball with the paddles and ball with the two edges are handled here.
+    SimpleGame.prototype.collission_detection = function () {
+        this.game.physics.arcade.collide(this.paddle1.paddle, this.ball.ball, (function (scope) {
+            return function () {
+                //scope.game.sound.play('biep2');
+                scope.redirect_ball(scope.paddle1, scope.ball);
+            };
+        })(this));
+        this.game.physics.arcade.collide(this.paddle2.paddle, this.ball.ball, (function (scope) {
+            return function () {
+                //scope.game.sound.play('biep');
+                scope.redirect_ball(scope.paddle2, scope.ball);
+            };
+        })(this));
+        if (this.ball.ball.body.blocked.left) {
+            this.score2++;
+            this.ball.reset(this.game);
+            this.paddle2.paddle.y = this.game.world.height / 2;
         }
-        else if (ball.body.blocked.right){
-            score1++;
-            reset_ball();
-            console.log('player 1 scores!');
-        }
-        
-        if(ball.y > paddle2.y+ paddle2.height/3){
-            paddle2.body.velocity.y = 300;
-        }
-        else if (ball.y < paddle2.y- paddle2.height/3){
-            paddle2.body.velocity.y = -300;
-        }
-        else
-        {
-            paddle2.body.velocity.y = 0;
+        else if (this.ball.ball.body.blocked.right) {
+            this.score1++;
+            this.ball.reset(this.game);
+            this.paddle2.paddle.y = this.game.world.height / 2;
         }
     };
-    function redirect_ball(paddle,ball){
-        var dx = -paddle.x + ball.x;
-        var dy = (-paddle.y + ball.y)/2;
-        var root = Math.sqrt(Math.pow(dx,2)+Math.pow(dy,2));
-        dx /= root;
-        dy /= root;
-        ball.body.velocity.x = dx*ball_velocity;
-        ball.body.velocity.y = dy*ball_velocity;
-
-    }
-    function create_paddle(x, y) {
-        var paddle = game.add.sprite(x, y, 'paddle');
-        paddle.anchor.setTo(0.5, 0.5);
-        game.physics.arcade.enable(paddle); //creates body for object
-        paddle.body.collideWorldBounds = true;
-        paddle.body.immovable = true;
-        paddle.scale.setTo(.5,.5);
-        return paddle;
-    }
-    function launch_ball(){
-        if(!ball_launched){
-            ball.body.velocity.x = -ball_velocity;
-            ball.body.velocity.y = 0;
-            ball_launched = true;
-        }
-    }
-    function reset_ball() {
-        ball.body.velocity.setTo(0,0);
-        ball.x = game.world.centerX;
-        ball.y = game.world.centerY;
-        ball_launched = false;
-    }
-    function create_ball(x, y) {
-        var ball = game.add.sprite(x, y, 'ball');
-        ball.anchor.setTo(0.5, 0.5);
-        game.physics.arcade.enable(ball); //creates body for object
-        ball.body.collideWorldBounds = true;
-        ball.body.bounce.setTo(1, 1);
-        return ball;
-    }
-
-    function input_paddle(paddle, y) {
+    //inputs the user has on the paddle
+    SimpleGame.prototype.input_paddle = function (obj, y) {
+        var paddle = obj.paddle;
         paddle.y = y;
         if (paddle.y < paddle.height / 2) {
             paddle.y = paddle.height / 2;
-        } else if (paddle.y > game.world.height - paddle.height / 2) {
-            paddle.y = game.world.height - paddle.height / 2
         }
+        else if (paddle.y > this.game.world.height - paddle.height / 2) {
+            paddle.y = this.game.world.height - paddle.height / 2;
+        }
+    };
+    SimpleGame.prototype.input_AI = function () {
+        //console.log(this.paddle2.paddle.body.velocity.y);
+        //this.paddle2.paddle.body.velocity.x = -50;
+        if (this.ball.ball.y > this.paddle2.paddle.y + this.paddle2.paddle.height / 3) {
+            this.paddle2.paddle.body.velocity.y = this.ball.ball.body.velocity.y;
+        }
+        else if (this.ball.ball.y < this.paddle2.paddle.y - this.paddle2.paddle.height / 3) {
+            this.paddle2.paddle.body.velocity.y = this.ball.ball.body.velocity.y;
+        }
+        else {
+            //this.paddle2.paddle.body.velocity.y = 0;
+        }
+    };
+    //gives the ball an angle of direction based on where the ball is hitted
+    SimpleGame.prototype.redirect_ball = function (pad, b) {
+        var ball = b.ball;
+        var paddle = pad.paddle;
+        var dx = -paddle.x + ball.x;
+        var dy = (-paddle.y + ball.y) / 2;
+        var root = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
+        dx /= root;
+        dy /= root;
+        ball.body.velocity.setTo(dx * b.ball_velocity, dy * b.ball_velocity);
+    };
+    return SimpleGame;
+}());
+window.onload = function () {
+    var game = new SimpleGame();
+};
+var Ball = /** @class */ (function () {
+    function Ball(x, y, game) {
+        this.ball_velocity = 1000;
+        this.ball_launched = false;
+        var ball = game.game.add.sprite(x, y, 'ball');
+        ball.anchor.setTo(0.5, 0.5);
+        game.game.physics.arcade.enable(ball); //creates body for object
+        ball.body.collideWorldBounds = true;
+        ball.body.bounce.setTo(1, 1);
+        this.ball = ball;
     }
-    
-}, false);
+    Ball.prototype.launch = function () {
+        if (!this.ball_launched) {
+            this.ball.body.velocity.x = this.ball_velocity;
+            //this.ball.body.velocity.y = -this.ball_velocity;
+            this.ball_launched = true;
+        }
+    };
+    Ball.prototype.reset = function (game) {
+        this.ball.body.velocity.setTo(0, 0);
+        this.ball.x = game.world.centerX;
+        this.ball.y = game.world.centerY;
+        this.ball_launched = false;
+    };
+    return Ball;
+}());
+var Paddle = /** @class */ (function () {
+    function Paddle(x, y, game) {
+        var paddle = game.game.add.sprite(x, y, 'paddle');
+        paddle.anchor.setTo(0.5, 0.5);
+        game.game.physics.arcade.enable(paddle); //creates body for object
+        paddle.body.collideWorldBounds = true;
+        paddle.body.immovable = true;
+        paddle.scale.setTo(.35, .35);
+        this.paddle = paddle;
+    }
+    return Paddle;
+}());
